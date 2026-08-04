@@ -4,7 +4,7 @@ Utolsó forrásellenőrzés: 2026. augusztus 4.
 
 ## Aktuális kapu
 
-A felhasználó a 2. és az összes további modult jóváhagyta. Mind a hat modul és mind a 42 részletes lecke elkészült. A következő és egyben utolsó kapu a teljes asztali/mobil böngészős QA, majd siker esetén a jóváhagyott nyilvános GitHub Pages-publikáció.
+A felhasználó a 2. és az összes további modult jóváhagyta. Mind a hat modul és mind a 42 részletes lecke elkészült. A teljes asztali/mobil böngészős QA és a nyilvános GitHub Pages-publikáció sikeresen lezárult.
 
 ## Elkészült
 
@@ -20,6 +20,7 @@ A felhasználó a 2. és az összes további modult jóváhagyta. Mind a hat mod
 - [x] Jogosultság-, távoli kapcsolat- és automatizálási tananyag
 - [x] 20/20 egyedi hivatalos forrás leckeszintű hozzárendelése
 - [x] GitHub Pages production workflow
+- [x] Publikus oldal: <https://wroadd.github.io/codex-tananyag/>
 
 ## Automatikus ellenőrzési eredmények
 
@@ -30,6 +31,7 @@ A felhasználó a 2. és az összes további modult jóváhagyta. Mind a hat mod
 - Mind a 20 forrást használja legalább egy lecke
 - `npm run build`: sikeres Vite production build
 - `npm audit --audit-level=moderate`: 0 ismert sérülékenység
+- GitHub Actions Pages-futtatás: sikeres, 23 másodperc
 
 ## Forrásállapot
 

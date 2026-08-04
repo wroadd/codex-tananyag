@@ -46,3 +46,9 @@ Minden lecke legalább három magyarázó részt, döntési térképet, gyenge�
 ## Publikációs határ
 
 A nyilvános repó és Pages-oldal csak a fenti automatikus ellenőrzések, az asztali és mobil böngészős QA, a konzolhiba-ellenőrzés, valamint a haladás–rubrika–export–törlés végponttól végpontig tesztje után készül el.
+
+## Publikációs eredmény
+
+- Repó: <https://github.com/wroadd/codex-tananyag>
+- Oldal: <https://wroadd.github.io/codex-tananyag/>
+- Első sikeres Pages-futtatás: `30931983363`, 23 másodperc

@@ -2,6 +2,8 @@
 
 Magyar nyelvű, weboldal-alapú oktatási anyag a Codex és a ChatGPT Work gyakorlati, ellenőrizhető munkafolyamatairól, hivatalos OpenAI-források alapján.
 
+Nyilvános tananyag: **[wroadd.github.io/codex-tananyag](https://wroadd.github.io/codex-tananyag/)**
+
 ## Indítás
 
 ```bash
