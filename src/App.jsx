@@ -1,16 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useReducer, useState } from 'react'
 import { modules, roles, sources } from './data.js'
+import { completeLessonProgress, createEmptyProgress, findLatestArtifact, loadProgress, resetStoredProgress, STORAGE_KEY, updateAnswerProgress, updateArtifactProgress } from './progress.js'
+import { initialProgressToolsState, progressToolsReducer } from './progress-tools-state.js'
 
-const emptyProgress = () => ({
-  version: 3,
-  lessonIds: [],
-  answers: {},
-  artifacts: {},
-  promptLab: {
-    prompt: 'Készíts heti vezetői összefoglalót a projektmappában található státuszjegyzetekből. A kimenet legyen egyoldalas, döntési pontokkal és forráshivatkozásokkal. Jelöld külön a bizonytalan állításokat, és ellenőrizd, hogy minden szám visszavezethető-e a forrásra.',
-    ratings: [0, 0, 0, 0, 0, 0],
-  },
-})
+const lessonSequence = modules.flatMap((module, moduleIndex) => module.lessons.map(lesson => ({ module, moduleIndex, lesson })))
+const lessonsById = new Map(lessonSequence.map(({ lesson }) => [lesson.id, lesson]))
 
 const rubric = [
   ['Cél és hatókör', 'Világos a kívánt eredmény, a közönség és az, mi nincs a feladatban.'],
@@ -25,13 +19,25 @@ const Arrow = ({ direction = 'right' }) => (
   <svg className={`icon icon-${direction}`} viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
 )
 
+const handleTabKey = (event, index, total, setActive, idForIndex) => {
+  const nextIndex = event.key === 'ArrowRight' ? (index + 1) % total
+    : event.key === 'ArrowLeft' ? (index - 1 + total) % total
+      : event.key === 'Home' ? 0
+        : event.key === 'End' ? total - 1
+          : null
+  if (nextIndex === null) return
+  event.preventDefault()
+  setActive(nextIndex)
+  requestAnimationFrame(() => document.getElementById(idForIndex(nextIndex))?.focus())
+}
+
 function Header() {
   const [open, setOpen] = useState(false)
   return <header className="site-header">
     <a className="brand" href="#top" aria-label="Codex Munkaműhely – kezdőlap"><span className="brand-mark">C<span>/</span>M</span><span>Codex<br/>Munkaműhely</span></a>
     <button className="menu-button" aria-expanded={open} aria-controls="navigation" onClick={() => setOpen(!open)}>{open ? 'Bezárás' : 'Menü'}</button>
     <nav id="navigation" className={open ? 'nav open' : 'nav'} aria-label="Fő navigáció">
-      <a href="#kezdes">Kezdés</a><a href="#munkafolyamatok">Munkafolyamatok</a><a href="#szerepkorok">Szerepkörök</a><a href="#eszkoztar">Eszköztár</a><a href="#forrasok">Források</a>
+      <a href="#kezdes" onClick={() => setOpen(false)}>Kezdés</a><a href="#munkafolyamatok" onClick={() => setOpen(false)}>Munkafolyamatok</a><a href="#szerepkorok" onClick={() => setOpen(false)}>Szerepkörök</a><a href="#eszkoztar" onClick={() => setOpen(false)}>Eszköztár</a><a href="#forrasok" onClick={() => setOpen(false)}>Források</a>
     </nav>
   </header>
 }
@@ -64,7 +70,7 @@ function LessonCourse({ module, progress, updateAnswer, updateArtifact, complete
 
   return <div className="lesson-course">
     <div className="lesson-tabs" role="tablist" aria-label={`${module.title} leckéi`}>
-      {module.lessons.map((item, index) => <button key={item.id} id={`lesson-tab-${item.id}`} role="tab" aria-controls={`lesson-panel-${item.id}`} aria-selected={active === index} className={progress.lessonIds.includes(item.id) ? 'complete' : ''} onClick={() => setActive(index)}>
+      {module.lessons.map((item, index) => <button key={item.id} id={`lesson-tab-${item.id}`} role="tab" aria-controls={`lesson-panel-${item.id}`} aria-selected={active === index} tabIndex={active === index ? 0 : -1} className={progress.lessonIds.includes(item.id) ? 'complete' : ''} onClick={() => setActive(index)} onKeyDown={event => handleTabKey(event, index, module.lessons.length, setActive, next => `lesson-tab-${module.lessons[next].id}`)}>
         <span>{progress.lessonIds.includes(item.id) ? '✓' : item.number}</span><strong>{item.title}</strong><small>{item.time}</small>
       </button>)}
     </div>
@@ -78,7 +84,7 @@ function LessonCourse({ module, progress, updateAnswer, updateArtifact, complete
 
       <section className="lesson-comparison" aria-labelledby={`comparison-${lesson.id}`}>
         <h4 id={`comparison-${lesson.id}`}>Döntési térkép</h4>
-        <div className="comparison-table" role="table">{lesson.comparison.map((row, index) => <div role="row" key={`${lesson.id}-${row[0]}`}><span role="cell">{String(index + 1).padStart(2, '0')}</span><strong role="cell">{row[0]}</strong><b role="cell">{row[1]}</b><p role="cell">{row[2]}</p></div>)}</div>
+        <div className="comparison-table" role="table"><div className="comparison-header" role="row"><span role="columnheader">Sorszám</span><strong role="columnheader">Feladat</strong><b role="columnheader">Felület</b><p role="columnheader">Indoklás</p></div>{lesson.comparison.map((row, index) => <div role="row" key={`${lesson.id}-${row[0]}`}><span role="cell">{String(index + 1).padStart(2, '0')}</span><strong role="cell">{row[0]}</strong><b role="cell">{row[1]}</b><p role="cell">{row[2]}</p></div>)}</div>
       </section>
 
       <section className="worked-example"><span>MUTASD</span><h4>{lesson.example.title}</h4><p>{lesson.example.setup}</p><div><div><small>GYENGE VÁLTOZAT</small><p>{lesson.example.weak}</p></div><div><small>ERŐS VÁLTOZAT</small><p>{lesson.example.strong}</p></div></div><p className="example-review">{lesson.example.review}</p></section>
@@ -143,7 +149,7 @@ function RoleCases() {
   const role = roles[active]
   return <section className="roles" id="szerepkorok">
     <div className="roles-intro"><div className="section-index">GYAKORLATI PÉLDÁK</div><h2>Más szerepkör.<br/>Ugyanaz a mérce.</h2><p>Az első használati eset legyen valódi munkatermék, ne képességbemutató.</p></div>
-    <div className="role-tabs" role="tablist" aria-label="Szerepkör választása">{roles.map((r, i) => <button id={`role-tab-${r.id}`} role="tab" aria-controls={`role-panel-${r.id}`} aria-selected={active === i} key={r.id} onClick={() => setActive(i)}><span>0{i + 1}</span>{r.label}</button>)}</div>
+    <div className="role-tabs" role="tablist" aria-label="Szerepkör választása">{roles.map((r, i) => <button id={`role-tab-${r.id}`} role="tab" aria-controls={`role-panel-${r.id}`} aria-selected={active === i} tabIndex={active === i ? 0 : -1} key={r.id} onClick={() => setActive(i)} onKeyDown={event => handleTabKey(event, i, roles.length, setActive, next => `role-tab-${roles[next].id}`)}><span>0{i + 1}</span>{r.label}</button>)}</div>
     <div className="role-detail" id={`role-panel-${role.id}`} role="tabpanel" aria-labelledby={`role-tab-${role.id}`}><div><span>MUNKATERMÉK</span><h3>{role.artifact}</h3><p>{role.copy}</p></div><dl><div><dt>Biztonságos bemenet</dt><dd>{role.inputs}</dd></div><div><dt>Gyors review</dt><dd>{role.review}</dd></div></dl></div>
   </section>
 }
@@ -176,47 +182,51 @@ function Sources() {
   </section>
 }
 
-function ProgressTools({ onExport, onReset }) {
-  const [confirming, setConfirming] = useState(false)
-  const [exportHref, setExportHref] = useState(null)
+function ProgressTools({ onExport, onReset, progressRevision, storageError }) {
+  const [{ confirming, exportHref }, dispatch] = useReducer(progressToolsReducer, initialProgressToolsState)
+  useEffect(() => { dispatch({ type: 'progress-changed' }) }, [progressRevision])
   return <aside className="progress-tools" aria-label="Saját tanulási adatok kezelése">
-    <div><span>SAJÁT ADATOK</span><h3>Vidd magaddal, vagy kezdd újra.</h3><p>A haladás, a munkatermékek és az önértékelés csak ebben a böngészőben tárolódik. Export előtt ellenőrizd, hogy nem írtál-e be érzékeny adatot.</p></div>
-    <div className="progress-actions"><button className="button" onClick={() => setExportHref(onExport())}>Exportfájl elkészítése</button>{exportHref ? <a className="button download-link" href={exportHref} download={`codex-tananyag-haladas-${new Date().toISOString().slice(0, 10)}.json`}>JSON-fájl letöltése</a> : null}<button className="text-button danger" onClick={() => setConfirming(true)}>Haladás törlése</button></div>
-    {confirming ? <div className="reset-confirm" role="alert"><p>Ez végleg törli a helyben mentett válaszokat, munkatermékeket és leckeállapotokat.</p><button className="text-button" onClick={() => setConfirming(false)}>Mégse</button><button className="button danger" onClick={() => { onReset(); setConfirming(false) }}>Végleges törlés</button></div> : null}
+    <div><span>SAJÁT ADATOK</span><h3>Vidd magaddal, vagy kezdd újra.</h3><p>A haladás, a munkatermékek és az önértékelés csak ebben a böngészőben tárolódik. Export előtt ellenőrizd, hogy nem írtál-e be érzékeny adatot.</p>{storageError ? <p className="storage-error" role="alert">A helyi mentés nem sikerült. Exportáld a munkád, majd ellenőrizd a böngésző tárhelybeállításait.</p> : null}</div>
+    <div className="progress-actions"><button className="button" onClick={() => dispatch({ type: 'prepare-export', href: onExport() })}>Exportfájl elkészítése</button>{exportHref ? <a className="button download-link" href={exportHref} download={`codex-tananyag-haladas-${new Date().toISOString().slice(0, 10)}.json`}>JSON-fájl letöltése</a> : null}<button className="text-button danger" onClick={() => dispatch({ type: 'request-reset' })}>Haladás törlése</button></div>
+    {confirming ? <div className="reset-confirm" role="alert"><p>Ez végleg törli a helyben mentett válaszokat, munkatermékeket és leckeállapotokat.</p><button className="text-button" onClick={() => dispatch({ type: 'cancel-reset' })}>Mégse</button><button className="button danger" onClick={() => { dispatch({ type: 'reset-complete' }); onReset() }}>Végleges törlés</button></div> : null}
   </aside>
 }
 
 export default function App() {
   const [selected, setSelected] = useState(0)
   const [initialLessonId, setInitialLessonId] = useState(null)
-  const [courseProgress, setCourseProgress] = useState(() => {
-    try {
-      const current = JSON.parse(localStorage.getItem('codex-course-progress-v3'))
-      if (current?.version === 3) return { ...emptyProgress(), ...current, promptLab: { ...emptyProgress().promptLab, ...current.promptLab } }
-      const saved = JSON.parse(localStorage.getItem('codex-course-progress-v2'))
-      if (saved?.version === 2) return { ...emptyProgress(), lessonIds: saved.lessonIds || [], answers: saved.answers || {}, artifacts: saved.artifacts || {} }
-      const legacy = JSON.parse(localStorage.getItem('codex-course-progress')) || []
-      return { ...emptyProgress(), lessonIds: Array.isArray(legacy) ? legacy.filter(id => id.includes('.')) : [] }
-    } catch {
-      return emptyProgress()
-    }
-  })
-  useEffect(() => { localStorage.setItem('codex-course-progress-v3', JSON.stringify(courseProgress)) }, [courseProgress])
+  const [courseProgress, setCourseProgress] = useState(() => loadProgress(localStorage, modules))
+  const [storageError, setStorageError] = useState(false)
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(courseProgress))
+        setStorageError(false)
+      } catch {
+        setStorageError(true)
+      }
+    }, 200)
+    return () => clearTimeout(timeout)
+  }, [courseProgress])
   const completed = modules
     .filter(module => module.lessons.every(lesson => courseProgress.lessonIds.includes(lesson.id)))
     .map(module => module.id)
   const updateAnswer = (lessonId, questionIndex, optionIndex) => setCourseProgress(current => {
-    const lessonAnswers = [...(current.answers[lessonId] || [])]
-    lessonAnswers[questionIndex] = optionIndex
-    return { ...current, answers: { ...current.answers, [lessonId]: lessonAnswers } }
+    const lesson = lessonsById.get(lessonId)
+    return lesson ? updateAnswerProgress(current, lesson, questionIndex, optionIndex) : current
   })
-  const updateArtifact = (lessonId, value) => setCourseProgress(current => ({ ...current, artifacts: { ...current.artifacts, [lessonId]: value } }))
-  const completeLesson = lessonId => setCourseProgress(current => current.lessonIds.includes(lessonId) ? current : ({ ...current, lessonIds: [...current.lessonIds, lessonId] }))
+  const updateArtifact = (lessonId, value) => setCourseProgress(current => {
+    const lesson = lessonsById.get(lessonId)
+    return lesson ? updateArtifactProgress(current, lesson, value) : current
+  })
+  const completeLesson = lessonId => setCourseProgress(current => {
+    const lesson = lessonsById.get(lessonId)
+    return lesson ? completeLessonProgress(current, lesson) : current
+  })
   const updatePromptLab = promptLab => setCourseProgress(current => ({ ...current, promptLab }))
   const progress = Math.round((completed.length / modules.length) * 100)
-  const lessonSequence = useMemo(() => modules.flatMap((module, moduleIndex) => module.lessons.map(lesson => ({ module, moduleIndex, lesson }))), [])
   const nextLesson = lessonSequence.find(item => !courseProgress.lessonIds.includes(item.lesson.id))
-  const lastArtifact = [...lessonSequence].reverse().find(item => courseProgress.artifacts[item.lesson.id]?.trim())
+  const lastArtifact = findLatestArtifact(lessonSequence, courseProgress)
   const chooseModule = index => { setSelected(index); setInitialLessonId(null); document.getElementById('kezdes')?.scrollIntoView({ behavior: 'smooth' }) }
   const resume = () => { if (!nextLesson) return; setSelected(nextLesson.moduleIndex); setInitialLessonId(nextLesson.lesson.id); document.getElementById('kezdes')?.scrollIntoView({ behavior: 'smooth' }) }
   const exportProgress = () => {
@@ -224,10 +234,8 @@ export default function App() {
     return `data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify(payload, null, 2))}`
   }
   const resetProgress = () => {
-    localStorage.removeItem('codex-course-progress')
-    localStorage.removeItem('codex-course-progress-v2')
-    localStorage.removeItem('codex-course-progress-v3')
-    setCourseProgress(emptyProgress())
+    setStorageError(!resetStoredProgress(localStorage))
+    setCourseProgress(createEmptyProgress())
     setSelected(0)
     setInitialLessonId(null)
   }
@@ -238,9 +246,9 @@ export default function App() {
           <div className="hero-copy"><h1>Ne azt kérdezd,<br/>mire képes.<br/><em>Adj neki valódi munkát.</em></h1><p>Gyakorlati, magyar nyelvű útvonal a biztonságos első feladattól az ismételhető munkafolyamatig.</p><div className="hero-actions"><a className="button" href="#kezdes">Kezdem az alapokkal <Arrow/></a><a className="text-link" href="#utvonal">Útvonal választása ↓</a></div></div>
           <ArtifactStack/>
         </section>
-        <section className="route" id="utvonal"><div className="route-head"><div><span>TANULÁSI ÚTVONAL</span><h2>Hat lépés a használható eredményig.</h2></div><div className="progress-copy"><strong>{completed.length} / {modules.length} modul</strong><span>{progress}%</span><div><i style={{width: `${progress}%`}}/></div></div></div><CourseRail completed={completed} onSelect={chooseModule}/><div className="resume-panel"><div><span>KÖVETKEZŐ LECKE</span><strong>{nextLesson ? `${nextLesson.lesson.number} · ${nextLesson.lesson.title}` : 'Minden lecke kész'}</strong></div><div><span>UTOLSÓ MENTETT MUNKATERMÉK</span><strong>{lastArtifact ? `${lastArtifact.lesson.number} · ${lastArtifact.lesson.artifact.label}` : 'Még nincs mentett munkatermék'}</strong></div>{nextLesson ? <button className="button" onClick={resume}>Folytatom <Arrow/></button> : null}</div></section>
+        <section className="route" id="utvonal"><div className="route-head"><div><span>TANULÁSI ÚTVONAL</span><h2>Hat lépés a használható eredményig.</h2></div><div className="progress-copy"><strong>{completed.length} / {modules.length} modul</strong><span>{progress}%</span><div role="progressbar" aria-label="Tananyag teljesítése" aria-valuemin="0" aria-valuemax="100" aria-valuenow={progress}><i style={{width: `${progress}%`}}/></div></div></div><CourseRail completed={completed} onSelect={chooseModule}/><div className="resume-panel"><div><span>KÖVETKEZŐ LECKE</span><strong>{nextLesson ? `${nextLesson.lesson.number} · ${nextLesson.lesson.title}` : 'Minden lecke kész'}</strong></div><div><span>UTOLSÓ MENTETT MUNKATERMÉK</span><strong>{lastArtifact ? `${lastArtifact.lesson.number} · ${lastArtifact.lesson.artifact.label}` : 'Még nincs mentett munkatermék'}</strong></div>{nextLesson ? <button className="button" onClick={resume}>Folytatom <Arrow/></button> : null}</div></section>
         <ModuleViewer selected={selected} setSelected={chooseModule} progress={courseProgress} updateAnswer={updateAnswer} updateArtifact={updateArtifact} completeLesson={completeLesson} initialLessonId={initialLessonId}/>
-        <PromptLab value={courseProgress.promptLab} onChange={updatePromptLab}/><RoleCases/><ExtensionFlow/><ProgressTools onExport={exportProgress} onReset={resetProgress}/><Sources/>
+        <PromptLab value={courseProgress.promptLab} onChange={updatePromptLab}/><RoleCases/><ExtensionFlow/><ProgressTools onExport={exportProgress} onReset={resetProgress} progressRevision={courseProgress} storageError={storageError}/><Sources/>
       </main>
     </div>
     <footer><div><span>CODEX MUNKAMŰHELY</span><h2>A jó eredmény<br/><em>gyorsan ellenőrizhető.</em></h2></div><a className="button light" href="#top">Vissza az elejére ↑</a><p>Magyar oktatási feldolgozás · Hivatalos OpenAI-források alapján · 2026</p></footer>

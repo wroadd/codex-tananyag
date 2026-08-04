@@ -34,6 +34,20 @@ expect(detailedLessons.length === 42, `A részletes leckék száma 42 helyett ${
 expect(unique(detailedLessons.map(lesson => lesson.id)), 'A részletes leckeazonosítók nem egyediek.')
 expect(detailedLessons.every(lesson => lesson.sections.length >= 3 && lesson.questions.length >= 1 && lesson.sources.length >= 1), 'Minden részletes leckéhez legalább három magyarázó rész, egy kérdés és egy forrás szükséges.')
 expect(detailedLessons.every(lesson => lesson.artifact?.minLength >= 70), 'Minden részletes leckéhez legalább 70 karakteres munkatermék szükséges.')
+expect(detailedLessons.every(lesson => lesson.id && lesson.number && lesson.title && lesson.objective && lesson.why), 'Minden leckéhez szükséges az azonosító, sorszám, cím, cél és indoklás.')
+expect(detailedLessons.every(lesson => lesson.sections.every(section => section.title && section.body)), 'Minden magyarázó részhez cím és szöveg szükséges.')
+expect(detailedLessons.every(lesson => lesson.comparison.length >= 1 && lesson.comparison.every(row => row.length === 3 && row.every(Boolean))), 'Minden döntési térképen legalább egy teljes, háromoszlopos sornak kell szerepelnie.')
+expect(detailedLessons.every(lesson => lesson.questions.every(question => (
+  question.prompt
+  && question.options.length >= 2
+  && question.feedback.length === question.options.length
+  && question.options.every(Boolean)
+  && question.feedback.every(Boolean)
+  && Number.isInteger(question.correct)
+  && question.correct >= 0
+  && question.correct < question.options.length
+))), 'Minden tudásellenőrző kérdéshez érvényes válaszok, visszajelzések és helyesválasz-index szükséges.')
+expect(detailedLessons.every(lesson => lesson.artifact.label && lesson.artifact.instruction && lesson.artifact.placeholder), 'Minden munkatermékhez címke, utasítás és beviteli minta szükséges.')
 expect(detailedLessons.every(lesson => lesson.sources.every(([, url]) => sourceUrls.has(url))), 'Minden leckeforrásnak szerepelnie kell az összevont forrásjegyzékben.')
 expect([...sourceUrls].every(url => usedSourceUrls.has(url)), 'A 20 hivatalos forrás mindegyikét legalább egy leckéhez hozzá kell rendelni.')
 expect(modules.every(module => module.lessons.at(-1).questions.length >= 3), 'Minden modul záróleckéjéhez legalább három helyzetalapú kérdés szükséges.')
