@@ -25,6 +25,7 @@ A hat modul és mind a 42 részletes lecke publikus. A software factory audit ja
 - [x] Automatizált állapot- és adatkezelési regressziós tesztek
 - [x] PR-ellenőrzésre szétválasztott verify/deploy workflow
 - [x] Rögzített csomagverziók, SHA-rögzített Actions és Dependabot
+- [x] Védett `main`: kötelező naprakész `verify`, PR, lineáris előzmény és beszélgetésfeloldás; force push és törlés tiltva
 - [x] Publikus oldal: <https://wroadd.github.io/codex-tananyag/>
 
 ## Automatikus ellenőrzési eredmények

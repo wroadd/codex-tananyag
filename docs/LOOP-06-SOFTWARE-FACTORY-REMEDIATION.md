@@ -23,6 +23,7 @@ A publikus tananyag factory auditjában talált állapotkezelési, adatkezelési
 - Pull requesten csak a `verify` job fut; a Pages-feltöltés és telepítés kizárólag `main` push vagy kézi indítás után történhet.
 - Az Actions teljes commit-SHA-ra, az npm-csomagok pontos verzióra vannak rögzítve.
 - Heti npm- és GitHub Actions-frissítési PR-eket Dependabot készít.
+- A `main` ág védett: PR és naprakész `verify` szükséges, a lineáris előzmény és a beszélgetések feloldása kötelező, a force push és az ágtörlés tiltott.
 
 ## Bizonyíték
 
