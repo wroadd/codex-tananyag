@@ -40,6 +40,23 @@ test('hibás helyi JSON esetén biztonságos üres állapotot ad', () => {
   assert.deepEqual(loadProgress(storage, modules), createEmptyProgress())
 })
 
+test('a korai verzió csak azonosítóként tárolt teljesítéseit migrálja és megőrzi', () => {
+  const storage = {
+    getItem: key => key === 'codex-course-progress' ? JSON.stringify([lesson.id]) : null,
+  }
+  const migrated = loadProgress(storage, modules)
+  assert.deepEqual(migrated.lessonIds, [lesson.id])
+  assert.deepEqual(migrated.legacyLessonIds, [lesson.id])
+  assert.deepEqual(sanitizeProgress(migrated, modules).lessonIds, [lesson.id])
+})
+
+test('a migrált legacy teljesítés szerkesztéskor már a jelenlegi feltételek szerint érvényesül', () => {
+  const migrated = sanitizeProgress({ lessonIds: [lesson.id], legacyLessonIds: [lesson.id] }, modules)
+  const revalidated = updateArtifactProgress(migrated, lesson, 'Túl rövid', 100)
+  assert.deepEqual(revalidated.lessonIds, [])
+  assert.deepEqual(revalidated.legacyLessonIds, [])
+})
+
 test('hibás alakú helyi adatok nem törik el a visszatérő látogatást', () => {
   const malformed = sanitizeProgress({
     lessonIds: 'nem-lista',

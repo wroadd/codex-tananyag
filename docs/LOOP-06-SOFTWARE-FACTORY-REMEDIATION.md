@@ -17,7 +17,7 @@ A publikus tananyag factory auditjában talált állapotkezelési, adatkezelési
 
 ## Automatizált kapuk
 
-- 10 Node-alapú regressziós teszt a teljesítés, hidratálás, törlés, export és utolsó munkatermék állapotaira.
+- 12 Node-alapú regressziós teszt a teljesítés, legacy migráció, hidratálás, törlés, export és utolsó munkatermék állapotaira.
 - Bővített tartalomvalidáció a kérdés-, visszajelzés-, helyesválasz-, munkatermék- és összehasonlítási sémára.
 - Egyetlen `npm run verify` parancs: lint, tartalomvalidáció, tesztek és production build.
 - Pull requesten csak a `verify` job fut; a Pages-feltöltés és telepítés kizárólag `main` push vagy kézi indítás után történhet.
@@ -29,7 +29,7 @@ A publikus tananyag factory auditjában talált állapotkezelési, adatkezelési
 
 - `npm ci`: sikeres, 109 auditált csomag.
 - `npm run verify`: sikeres.
-- `npm test`: 10/10 sikeres.
+- `npm test`: 12/12 sikeres.
 - `npm audit --audit-level=moderate`: 0 sérülékenység.
 - Vite production build: sikeres.
 - Helyi böngészős QA: desktop és 390 × 844 mobil nézet, 0 konzolhiba.

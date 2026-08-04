@@ -31,7 +31,7 @@ A hat modul és mind a 42 részletes lecke publikus. A software factory audit ja
 ## Automatikus ellenőrzési eredmények
 
 - `npm run check`: sikeres
-- `npm test`: 10/10 sikeres regressziós teszt
+- `npm test`: 12/12 sikeres regressziós teszt
 - `npm run verify`: sikeres
 - Tartalom: 6 modul, 42 lecke, 4 szerepkör, 20 egyedi forrás
 - Modulleckeszámok: 6, 6, 7, 8, 8, 7

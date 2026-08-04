@@ -6,6 +6,7 @@ const defaultPrompt = 'Készíts heti vezetői összefoglalót a projektmappába
 export const createEmptyProgress = () => ({
   version: 3,
   lessonIds: [],
+  legacyLessonIds: [],
   answers: {},
   artifacts: {},
   artifactUpdatedAt: {},
@@ -41,6 +42,7 @@ export const sanitizeProgress = (candidate, modules) => {
   const merged = {
     ...empty,
     lessonIds: Array.isArray(source.lessonIds) ? source.lessonIds : [],
+    legacyLessonIds: Array.isArray(source.legacyLessonIds) ? source.legacyLessonIds : [],
     answers,
     artifacts,
     artifactUpdatedAt,
@@ -52,9 +54,10 @@ export const sanitizeProgress = (candidate, modules) => {
     },
     version: 3,
   }
+  merged.legacyLessonIds = [...new Set(merged.legacyLessonIds)].filter(id => lessons.has(id))
   merged.lessonIds = [...new Set(merged.lessonIds)].filter(id => {
     const lesson = lessons.get(id)
-    return lesson ? lessonIsReady(lesson, merged) : false
+    return lesson ? lessonIsReady(lesson, merged) || merged.legacyLessonIds.includes(id) : false
   })
   return merged
 }
@@ -68,21 +71,25 @@ export const loadProgress = (storage, modules) => {
     if (saved?.version === 2) return sanitizeProgress(saved, modules)
 
     const legacy = JSON.parse(storage.getItem('codex-course-progress')) || []
-    return sanitizeProgress({ lessonIds: Array.isArray(legacy) ? legacy.filter(id => id.includes('.')) : [] }, modules)
+    const legacyLessonIds = Array.isArray(legacy) ? legacy.filter(id => id.includes('.')) : []
+    return sanitizeProgress({ lessonIds: legacyLessonIds, legacyLessonIds }, modules)
   } catch {
     return createEmptyProgress()
   }
 }
 
-const withoutInvalidCompletion = (progress, lesson) => lessonIsReady(lesson, progress)
-  ? progress
-  : { ...progress, lessonIds: progress.lessonIds.filter(id => id !== lesson.id) }
+const revalidateCompletion = (progress, lesson) => {
+  const withoutLegacyTrust = { ...progress, legacyLessonIds: progress.legacyLessonIds.filter(id => id !== lesson.id) }
+  return lessonIsReady(lesson, withoutLegacyTrust)
+    ? withoutLegacyTrust
+    : { ...withoutLegacyTrust, lessonIds: withoutLegacyTrust.lessonIds.filter(id => id !== lesson.id) }
+}
 
 export const updateAnswerProgress = (progress, lesson, questionIndex, optionIndex) => {
   const lessonAnswers = [...(progress.answers[lesson.id] || [])]
   lessonAnswers[questionIndex] = optionIndex
   const updated = { ...progress, answers: { ...progress.answers, [lesson.id]: lessonAnswers } }
-  return withoutInvalidCompletion(updated, lesson)
+  return revalidateCompletion(updated, lesson)
 }
 
 export const updateArtifactProgress = (progress, lesson, value, updatedAt = Date.now()) => {
@@ -91,12 +98,12 @@ export const updateArtifactProgress = (progress, lesson, value, updatedAt = Date
     artifacts: { ...progress.artifacts, [lesson.id]: value },
     artifactUpdatedAt: { ...progress.artifactUpdatedAt, [lesson.id]: updatedAt },
   }
-  return withoutInvalidCompletion(updated, lesson)
+  return revalidateCompletion(updated, lesson)
 }
 
 export const completeLessonProgress = (progress, lesson) => {
   if (!lessonIsReady(lesson, progress) || progress.lessonIds.includes(lesson.id)) return progress
-  return { ...progress, lessonIds: [...progress.lessonIds, lesson.id] }
+  return { ...progress, lessonIds: [...progress.lessonIds, lesson.id], legacyLessonIds: progress.legacyLessonIds.filter(id => id !== lesson.id) }
 }
 
 export const findLatestArtifact = (lessonSequence, progress) => lessonSequence
