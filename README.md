@@ -7,19 +7,18 @@ Nyilvános tananyag: **[wroadd.github.io/codex-tananyag](https://wroadd.github.i
 ## Indítás
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
 Éles build:
 
 ```bash
-npm run check
-npm run build
+npm run verify
 npm run preview
 ```
 
-Az `npm run check` az ESLint mellett a modul-, szerepkör-, forráskulcs- és forrásszűrő-regressziókat is ellenőrzi.
+Az `npm run verify` futtatja az ESLintet, a tartalmi invariánsokat, a haladás- és adatkezelési regressziós teszteket, valamint a production buildet.
 
 ## Mit tartalmaz?
 
@@ -46,3 +45,5 @@ Az oktatási tartalom a `src/data.js`, a források ugyanennek a fájlnak a `sour
 2. az átirányított URL-eket cseréld közvetlenül az új célcímre;
 3. futtasd az ellenőrzést és a buildet;
 4. nézd végig asztali és mobil nézetben a modul-, prompt- és forrásfolyamatot.
+
+Minden változtatás pull requestben fusson át a `verify` státuszellenőrzésen. A GitHub Actions külső lépései teljes commit-SHA-ra vannak rögzítve; a függőségfrissítéseket a Dependabot külön PR-ekben készíti elő.
